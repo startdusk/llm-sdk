@@ -548,6 +548,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn tools_chat_completion_should_work() -> anyhow::Result<()> {
         let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let req = gen_tool_completion_request();

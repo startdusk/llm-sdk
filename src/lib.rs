@@ -1,11 +1,12 @@
 mod api;
+pub use api::*;
 
 use anyhow::{anyhow, Ok};
 use api::chat_completion::ChatCompletionResponse;
-pub use api::*;
 use async_trait::async_trait;
 use schemars::{schema_for, JsonSchema};
 
+use bytes::Bytes;
 use std::time::Duration;
 
 use reqwest::{Client, RequestBuilder, Response};
@@ -46,6 +47,12 @@ impl LlmSdk {
         let req = self.prepare_request(req);
         let res = req.send_and_log().await?;
         Ok(res.json::<create_image::CreateImageResponse>().await?)
+    }
+
+    pub async fn speech(&self, req: speech::SpeechRequest) -> anyhow::Result<Bytes> {
+        let req = self.prepare_request(req);
+        let res = req.send_and_log().await?;
+        Ok(res.bytes().await?)
     }
 
     fn prepare_request(&self, req: impl IntoRequest) -> RequestBuilder {
