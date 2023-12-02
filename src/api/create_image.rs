@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::IntoRequest;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Builder)]
+#[derive(Debug, Serialize, Clone, Builder)]
 #[builder(pattern = "mutable")]
 pub struct CreateImageRequest {
     /// A text description of the desired image(s). The maximum length is 1000 characters
@@ -61,46 +61,32 @@ impl CreateImageRequest {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum ImageModel {
+    #[default]
     #[serde(rename = "dall-e-3")]
     DallE3,
 }
 
-impl Default for ImageModel {
-    fn default() -> Self {
-        ImageModel::DallE3
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ImageQuality {
+    #[default]
     Standard,
     Hd,
 }
 
-impl Default for ImageQuality {
-    fn default() -> Self {
-        ImageQuality::Standard
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ImageResponseFormat {
+    #[default]
     Url,
     B64Json,
 }
 
-impl Default for ImageResponseFormat {
-    fn default() -> Self {
-        ImageResponseFormat::Url
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum ImageSize {
+    #[default]
     #[serde(rename = "1024x1024")]
     Large,
 
@@ -111,32 +97,21 @@ pub enum ImageSize {
     LargeTall,
 }
 
-impl Default for ImageSize {
-    fn default() -> Self {
-        ImageSize::Large
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ImageStyle {
+    #[default]
     Vivid,
     Natural,
 }
 
-impl Default for ImageStyle {
-    fn default() -> Self {
-        ImageStyle::Vivid
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct CreateImageResponse {
     pub created: u64,
     pub data: Vec<ImageObject>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ImageObject {
     /// The base64-encoded JSON of the generated image, if response_format is b64_json.
     pub b64_json: Option<String>,
@@ -147,9 +122,6 @@ pub struct ImageObject {
     /// The prompt that was used to generate the image, if there was any revision to the prompt.
     pub revised_prompt: String,
 }
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Chioce {}
 
 impl IntoRequest for CreateImageRequest {
     fn into_request(self, client: Client) -> RequestBuilder {
@@ -173,7 +145,7 @@ mod tests {
     fn create_image_request_should_serialize() -> Result<()> {
         let req = CreateImageRequest::new("draw a cute caterpillar");
         assert_eq!(
-            serde_json::to_value(&req)?,
+            serde_json::to_value(req)?,
             json!({
                 "model": "dall-e-3",
                 "prompt": "draw a cute caterpillar",
@@ -190,7 +162,7 @@ mod tests {
             .quality(ImageQuality::Hd)
             .build()?;
         assert_eq!(
-            serde_json::to_value(&req)?,
+            serde_json::to_value(req)?,
             json!({
                 "model": "dall-e-3",
                 "prompt": "draw a cute caterpillar",

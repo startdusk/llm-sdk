@@ -8,4 +8,9 @@ keytest:
 
 .PHONY: test
 test:
-	cargo nextest run
+	@cargo nextest run --all-features
+
+.PHONY: fmt
+fmt:
+	@cargo fmt -- --check
+	@cargo clippy --all-targets --all-features --tests --benches -- -D warnings
