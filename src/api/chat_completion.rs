@@ -2,7 +2,7 @@ use derive_builder::Builder;
 use reqwest::{Client, RequestBuilder};
 use serde::{Deserialize, Serialize};
 
-use crate::IntoRequest;
+use crate::{IntoRequest, ToSchema};
 
 #[derive(Debug, Serialize, Clone, Builder)]
 pub struct ChatCompletionRequest {
@@ -117,9 +117,33 @@ pub enum ToolChoice {
 pub struct Tool {
     /// The type of the tool. Currently, only function is supported.
     #[serde(rename = "type")]
-    typ: String,
+    typ: ToolType,
 
     function: FunctionInfo,
+}
+
+#[derive(Debug, Copy, Default, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolType {
+    #[default]
+    Function,
+}
+
+impl Tool {
+    pub fn new_function<T: ToSchema>(
+        name: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        let parameters = T::to_schema();
+        Self {
+            typ: ToolType::Function,
+            function: FunctionInfo {
+                description: description.into(),
+                name: name.into(),
+                parameters,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -188,7 +212,8 @@ pub struct UserMessage {
 #[derive(Debug, Serialize, Clone, Deserialize)]
 pub struct AssistantMessage {
     /// The contents of the assistant message.
-    content: String,
+    #[serde(default)]
+    content: Option<String>,
 
     /// An optional name for the participant. Provides the model information to
     /// differentiate between participants of the same role.
@@ -201,6 +226,7 @@ pub struct AssistantMessage {
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ToolCall {
     /// The ID of the tool call.
     id: String,
@@ -359,9 +385,51 @@ impl ChatCompletionMessage {
 
 #[cfg(test)]
 mod tests {
-    use crate::LlmSdk;
+    use schemars::JsonSchema;
 
     use super::*;
+    use crate::LlmSdk;
+
+    #[allow(dead_code)]
+    #[derive(Debug, Deserialize, JsonSchema)]
+    struct GetWeatherArgs {
+        city: String,
+        unit: TemperatureUnit,
+    }
+
+    #[allow(dead_code)]
+    #[derive(Debug, Clone)]
+    struct GetWeatherResponse {
+        temperature: f32,
+        unit: TemperatureUnit,
+    }
+
+    #[allow(dead_code)]
+    #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Deserialize, JsonSchema)]
+    enum TemperatureUnit {
+        #[default]
+        Celsius,
+        Fahrenheit,
+    }
+
+    #[allow(dead_code)]
+    #[derive(Debug, JsonSchema, Deserialize)]
+    struct ExplainMoodArgs {
+        name: String,
+    }
+
+    fn get_weather_forecast(args: GetWeatherArgs) -> GetWeatherResponse {
+        match args.unit {
+            TemperatureUnit::Celsius => GetWeatherResponse {
+                temperature: 22.0,
+                unit: TemperatureUnit::Celsius,
+            },
+            TemperatureUnit::Fahrenheit => GetWeatherResponse {
+                temperature: 72.0,
+                unit: TemperatureUnit::Fahrenheit,
+            },
+        }
+    }
 
     #[test]
     #[ignore]
@@ -431,7 +499,40 @@ mod tests {
         );
     }
 
+    #[test]
+    fn chat_completion_request_with_tools_serilize_should_work() {
+        let req = gen_tool_completion_request();
+        let json = serde_json::to_value(req).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "messages": [
+                    {
+                        "content": "I can choose the right function for you.",
+                        "role": "system"
+                    },
+                    {   "content": "What is the weather like in Boston?",
+                        "name": "user1",
+                        "role": "user"
+                    }
+                ],
+                "model": "gpt-3.5-turbo",
+                "tools": [
+                    Tool::new_function::<GetWeatherArgs>(
+                        "get_weather_forecast",
+                        "Get the weather forecast for a city.",
+                    ),
+                    Tool::new_function::<ExplainMoodArgs>(
+                        "explain_mood",
+                        "Explain the meaning of the given mood.",
+                    ),
+                ]
+            })
+        );
+    }
+
     #[tokio::test]
+    #[ignore]
     async fn simple_chat_completion_should_work() -> anyhow::Result<()> {
         let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let req = gen_simple_completion_request();
@@ -446,6 +547,30 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn tools_chat_completion_should_work() -> anyhow::Result<()> {
+        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
+        let req = gen_tool_completion_request();
+        let res = sdk.chat_completion(req).await?;
+        assert_eq!(res.choices.len(), 1);
+        assert_eq!(res.object, "chat.completion");
+        assert_eq!(res.choices.len(), 1);
+        let choice = &res.choices[0];
+        dbg!(choice);
+        assert_eq!(choice.finish_reason, FinishReason::ToolCalls);
+        assert_eq!(choice.index, 0);
+        assert_eq!(choice.message.content, None);
+        assert_eq!(choice.message.tool_calls.len(), 1);
+        let tool_call = &choice.message.tool_calls[0];
+        assert_eq!(tool_call.function.name, "get_weather_forecast");
+        let ret = get_weather_forecast(serde_json::from_str(&tool_call.function.arguments)?);
+        println!("{:#?}", ret);
+
+        assert_eq!(ret.unit, TemperatureUnit::Celsius);
+        assert_eq!(ret.temperature, 22.0);
+        Ok(())
+    }
+
     fn gen_simple_completion_request() -> ChatCompletionRequest {
         let messages = vec![
             ChatCompletionMessage::new_system("I can answer any question you ask me.", ""),
@@ -453,6 +578,29 @@ mod tests {
         ];
         let req = ChatCompletionRequestBuilder::default()
             .messages(messages)
+            .build()
+            .unwrap();
+        req
+    }
+
+    fn gen_tool_completion_request() -> ChatCompletionRequest {
+        let messages = vec![
+            ChatCompletionMessage::new_system("I can choose the right function for you.", ""),
+            ChatCompletionMessage::new_user("What is the weather like in Boston?", "user1"),
+        ];
+        let tools = vec![
+            Tool::new_function::<GetWeatherArgs>(
+                "get_weather_forecast",
+                "Get the weather forecast for a city.",
+            ),
+            Tool::new_function::<ExplainMoodArgs>(
+                "explain_mood",
+                "Explain the meaning of the given mood.",
+            ),
+        ];
+        let req = ChatCompletionRequestBuilder::default()
+            .messages(messages)
+            .tools(tools)
             .build()
             .unwrap();
         req
