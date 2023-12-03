@@ -55,10 +55,7 @@ impl LlmSdk {
         Ok(res.bytes().await?)
     }
 
-    pub async fn whisper(
-        &self,
-        req: whisper::WhisperRequest,
-    ) -> Result<whisper::WhisperResponse> {
+    pub async fn whisper(&self, req: whisper::WhisperRequest) -> Result<whisper::WhisperResponse> {
         let is_json = req.is_json();
         let req = self.prepare_request(req);
         let res = req.send_and_log().await?;
@@ -69,6 +66,17 @@ impl LlmSdk {
             whisper::WhisperResponse { text }
         };
         Ok(ret)
+    }
+
+    pub async fn create_embedding(
+        &self,
+        req: create_embedding::CreateEmbeddingRequest,
+    ) -> Result<create_embedding::CreateEmbeddingResponse> {
+        let req = self.prepare_request(req);
+        let res = req.send_and_log().await?;
+        Ok(res
+            .json::<create_embedding::CreateEmbeddingResponse>()
+            .await?)
     }
 
     fn prepare_request(&self, req: impl IntoRequest) -> RequestBuilder {
