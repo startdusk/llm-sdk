@@ -69,10 +69,9 @@ impl SpeechRequest {
 }
 
 impl IntoRequest for SpeechRequest {
-    fn into_request(self, client: Client) -> RequestBuilder {
-        client
-            .post("https://api.openai.com/v1/audio/speech")
-            .json(&self)
+    fn into_request(self, base_url: &str, client: Client) -> RequestBuilder {
+        let url = format!("{base_url}/audio/speech");
+        client.post(url).json(&self)
     }
 }
 
@@ -80,28 +79,24 @@ impl IntoRequest for SpeechRequest {
 mod tests {
     use std::fs;
 
-    use crate::LlmSdk;
+    use crate::SDK;
 
     use super::*;
     use anyhow::Result;
 
     #[tokio::test]
-    #[ignore]
     async fn speech_should_work() -> Result<()> {
-        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let req = SpeechRequest::new("The quick brown fox jumped over the lazy dog.");
-        let res = sdk.speech(req).await?;
+        let res = SDK.speech(req).await?;
 
         fs::write("fixtures/test.mp3", res)?;
         Ok(())
     }
 
     #[tokio::test]
-    #[ignore]
     async fn speech_should_work_chinese() -> Result<()> {
-        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let req = SpeechRequest::new("红领巾胸前挂, 祖国永远在心中。");
-        let res = sdk.speech(req).await?;
+        let res = SDK.speech(req).await?;
 
         fs::write("fixtures/chinese.mp3", res)?;
         Ok(())

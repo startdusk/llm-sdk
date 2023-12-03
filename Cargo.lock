@@ -490,6 +490,7 @@ dependencies = [
  "bytes",
  "ctor",
  "derive_builder",
+ "lazy_static",
  "reqwest",
  "schemars",
  "serde",

@@ -25,4 +25,5 @@ strum = { version = "0.25.0", features = ["derive"] }
 
 [dev-dependencies]
 ctor = "0.2.5"
+lazy_static = "1.4.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

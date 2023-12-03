@@ -343,10 +343,9 @@ pub enum FinishReason {
 }
 
 impl IntoRequest for ChatCompletionRequest {
-    fn into_request(self, client: Client) -> RequestBuilder {
-        client
-            .post("https://api.openai.com/v1/chat/completions")
-            .json(&self)
+    fn into_request(self, base_url: &str, client: Client) -> RequestBuilder {
+        let url = format!("{base_url}/chat/completions");
+        client.post(url).json(&self)
     }
 }
 
@@ -388,7 +387,7 @@ mod tests {
     use schemars::JsonSchema;
 
     use super::*;
-    use crate::LlmSdk;
+    use crate::SDK;
 
     #[allow(dead_code)]
     #[derive(Debug, Deserialize, JsonSchema)]
@@ -532,11 +531,9 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn simple_chat_completion_should_work() -> anyhow::Result<()> {
-        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let req = gen_simple_completion_request();
-        let res = sdk.chat_completion(req).await?;
+        let res = SDK.chat_completion(req).await?;
         assert_eq!(res.choices.len(), 1);
         assert_eq!(res.object, "chat.completion");
         assert_eq!(res.choices.len(), 1);
@@ -548,11 +545,9 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn tools_chat_completion_should_work() -> anyhow::Result<()> {
-        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let req = gen_tool_completion_request();
-        let res = sdk.chat_completion(req).await?;
+        let res = SDK.chat_completion(req).await?;
         assert_eq!(res.choices.len(), 1);
         assert_eq!(res.object, "chat.completion");
         assert_eq!(res.choices.len(), 1);

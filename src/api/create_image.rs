@@ -124,10 +124,9 @@ pub struct ImageObject {
 }
 
 impl IntoRequest for CreateImageRequest {
-    fn into_request(self, client: Client) -> RequestBuilder {
-        client
-            .post("https://api.openai.com/v1/images/generations")
-            .json(&self)
+    fn into_request(self, base_url: &str, client: Client) -> RequestBuilder {
+        let url = format!("{base_url}/images/generations");
+        client.post(url).json(&self)
     }
 }
 
@@ -135,7 +134,7 @@ impl IntoRequest for CreateImageRequest {
 mod tests {
     use std::fs;
 
-    use crate::LlmSdk;
+    use crate::SDK;
 
     use super::*;
     use anyhow::Result;
@@ -176,9 +175,8 @@ mod tests {
     #[ignore = "这个单元测试很贵, OpenAI生成一个图片就要4美分, 相当于人名币3毛钱"]
     #[tokio::test]
     async fn create_image_should_work() -> Result<()> {
-        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let req = CreateImageRequest::new("draw a cute caterpillar");
-        let res = sdk.create_image(req).await?;
+        let res = SDK.create_image(req).await?;
         assert_eq!(res.data.len(), 1);
         let image = &res.data[0];
         assert!(image.url.is_some());
