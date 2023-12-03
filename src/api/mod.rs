@@ -1,4 +1,4 @@
 pub mod chat_completion;
 pub mod create_image;
 pub mod speech;
-pub mod transcription;
+pub mod whisper;
