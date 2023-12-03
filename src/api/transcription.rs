@@ -35,7 +35,7 @@ pub struct TranscriptionRequest {
     temperature: Option<f32>,
 }
 
-#[derive(Debug, EnumString, Display, Clone, Copy, Default)]
+#[derive(Debug, EnumString, PartialEq, Eq, Display, Clone, Copy, Default)]
 #[strum(serialize_all = "snake_case")]
 pub enum TranscriptionResponseFormat {
     #[default]
@@ -73,6 +73,10 @@ impl TranscriptionRequest {
             .file(data)
             .build()
             .unwrap()
+    }
+
+    pub fn is_json(&self) -> bool {
+        self.response_format == TranscriptionResponseFormat::Json
     }
 
     fn into_form(self) -> Form {
@@ -123,6 +127,7 @@ mod tests {
     use anyhow::Result;
 
     #[tokio::test]
+    #[ignore]
     async fn transctiption_should_work() -> Result<()> {
         let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
         let data = fs::read("fixtures/test.mp3")?;
@@ -133,6 +138,37 @@ mod tests {
             "The quick brown fox jumped over the lazy dog."
         );
         fs::write("fixtures/test.txt", res.text)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn transctiption_with_response_format_text_should_work() -> Result<()> {
+        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
+        let data = fs::read("fixtures/test.mp3")?;
+        let req = TranscriptionRequestBuilder::default()
+            .file(data)
+            .response_format(TranscriptionResponseFormat::Text)
+            .build()?;
+        let res = sdk.transcription(req).await?;
+        assert_eq!(res.text, "The quick brown fox jumped over the lazy dog.\n");
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn transctiption_with_response_format_vtt_should_work() -> Result<()> {
+        let sdk = LlmSdk::new(std::env::var("OPENAI_API_KEY")?);
+        let data = fs::read("fixtures/test.mp3")?;
+        let req = TranscriptionRequestBuilder::default()
+            .file(data)
+            .response_format(TranscriptionResponseFormat::Vtt)
+            .build()?;
+        let res = sdk.transcription(req).await?;
+        assert_eq!(
+            res.text,
+            "WEBVTT\n\n00:00:00.000 --> 00:00:03.520\nThe quick brown fox jumped over the lazy dog.\n\n"
+        );
         Ok(())
     }
 }

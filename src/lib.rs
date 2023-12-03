@@ -2,7 +2,7 @@ mod api;
 pub use api::*;
 
 use anyhow::{anyhow, Result};
-use api::chat_completion::ChatCompletionResponse;
+use api::{chat_completion::ChatCompletionResponse, transcription::TranscriptionResponse};
 use async_trait::async_trait;
 use schemars::{schema_for, JsonSchema};
 
@@ -59,9 +59,16 @@ impl LlmSdk {
         &self,
         req: transcription::TranscriptionRequest,
     ) -> Result<transcription::TranscriptionResponse> {
+        let is_json = req.is_json();
         let req = self.prepare_request(req);
         let res = req.send_and_log().await?;
-        Ok(res.json::<transcription::TranscriptionResponse>().await?)
+        let ret = if is_json {
+            res.json::<transcription::TranscriptionResponse>().await?
+        } else {
+            let text = res.text().await?;
+            TranscriptionResponse { text }
+        };
+        Ok(ret)
     }
 
     fn prepare_request(&self, req: impl IntoRequest) -> RequestBuilder {
