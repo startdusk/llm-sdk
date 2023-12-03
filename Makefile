@@ -8,7 +8,7 @@ keytest:
 
 .PHONY: test
 test:
-	@cargo nextest run --all-features
+	@RUST_LOG=debug cargo nextest run --all-features
 
 .PHONY: fmt
 fmt:

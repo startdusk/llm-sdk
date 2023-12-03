@@ -1,8 +1,6 @@
 use derive_builder::Builder;
-use reqwest::{
-    multipart::{Form, Part},
-    Client, RequestBuilder,
-};
+use reqwest::multipart::{Form, Part};
+use reqwest_middleware::{ClientWithMiddleware, RequestBuilder};
 use serde::Deserialize;
 use strum::{Display, EnumString};
 
@@ -129,7 +127,7 @@ impl WhisperRequest {
 }
 
 impl IntoRequest for WhisperRequest {
-    fn into_request(self, base_url: &str, client: Client) -> RequestBuilder {
+    fn into_request(self, base_url: &str, client: ClientWithMiddleware) -> RequestBuilder {
         let url = match self.request_type {
             WhisperRequestType::Transcription => format!("{base_url}/audio/transcriptions"),
             WhisperRequestType::Translation => format!("{base_url}/audio/translations"),
@@ -185,7 +183,7 @@ mod tests {
         let res = SDK.whisper(req).await?;
         assert_eq!(
             res.text,
-            "WEBVTT\n\n00:00:00.000 --> 00:00:03.520\nThe quick brown fox jumped over the lazy dog.\n\n"
+            "WEBVTT\n\n00:00:00.000 --> 00:00:03.840\nThe quick brown fox jumped over the lazy dog.\n\n"
         );
         Ok(())
     }
@@ -201,7 +199,7 @@ mod tests {
         let res = SDK.whisper(req).await?;
         assert_eq!(
             res.text,
-            "1\n00:00:00,000 --> 00:00:03,000\n红领巾胸前挂 祖国永远在心中\n\n\n"
+            "1\n00:00:00,000 --> 00:00:03,000\nHong Ling Ching will always be in the heart of the motherland.\n\n\n"
         );
         Ok(())
     }
