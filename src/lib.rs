@@ -1,7 +1,7 @@
 mod api;
 pub use api::*;
 
-use anyhow::{anyhow, Ok};
+use anyhow::{anyhow, Result};
 use api::chat_completion::ChatCompletionResponse;
 use async_trait::async_trait;
 use schemars::{schema_for, JsonSchema};
@@ -34,7 +34,7 @@ impl LlmSdk {
     pub async fn chat_completion(
         &self,
         req: chat_completion::ChatCompletionRequest,
-    ) -> anyhow::Result<chat_completion::ChatCompletionResponse> {
+    ) -> Result<chat_completion::ChatCompletionResponse> {
         let req = self.prepare_request(req);
         let res = req.send_and_log().await?;
         Ok(res.json::<ChatCompletionResponse>().await?)
@@ -43,16 +43,25 @@ impl LlmSdk {
     pub async fn create_image(
         &self,
         req: create_image::CreateImageRequest,
-    ) -> anyhow::Result<create_image::CreateImageResponse> {
+    ) -> Result<create_image::CreateImageResponse> {
         let req = self.prepare_request(req);
         let res = req.send_and_log().await?;
         Ok(res.json::<create_image::CreateImageResponse>().await?)
     }
 
-    pub async fn speech(&self, req: speech::SpeechRequest) -> anyhow::Result<Bytes> {
+    pub async fn speech(&self, req: speech::SpeechRequest) -> Result<Bytes> {
         let req = self.prepare_request(req);
         let res = req.send_and_log().await?;
         Ok(res.bytes().await?)
+    }
+
+    pub async fn transcription(
+        &self,
+        req: transcription::TranscriptionRequest,
+    ) -> Result<transcription::TranscriptionResponse> {
+        let req = self.prepare_request(req);
+        let res = req.send_and_log().await?;
+        Ok(res.json::<transcription::TranscriptionResponse>().await?)
     }
 
     fn prepare_request(&self, req: impl IntoRequest) -> RequestBuilder {
@@ -69,18 +78,18 @@ impl LlmSdk {
 
 #[async_trait]
 trait SendAndLog {
-    async fn send_and_log(self) -> anyhow::Result<Response>;
+    async fn send_and_log(self) -> Result<Response>;
 }
 
 #[async_trait]
 impl SendAndLog for RequestBuilder {
-    async fn send_and_log(self) -> anyhow::Result<Response> {
+    async fn send_and_log(self) -> Result<Response> {
         let res = self.send().await?;
         let status = res.status();
         if status.is_client_error() || status.is_server_error() {
             let text = res.text().await?;
-            tracing::error!("send_and_log error: {:#?}", text);
-            return Err(anyhow!("send_and_log error: {:#?}", text));
+            tracing::error!("API failed: {:#?}", text);
+            return Err(anyhow!("API failed: {:#?}", text));
         }
         Ok(res)
     }
