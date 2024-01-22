@@ -5,7 +5,6 @@ pub use api::*;
 
 use anyhow::{anyhow, Result};
 use api::chat_completion::ChatCompletionResponse;
-use async_trait::async_trait;
 use middleware::RetryMiddleware;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use reqwest_tracing::TracingMiddleware;
@@ -105,12 +104,10 @@ impl LlmSdk {
     }
 }
 
-#[async_trait]
 trait SendAndLog {
     async fn send_and_log(self) -> Result<Response>;
 }
 
-#[async_trait]
 impl SendAndLog for RequestBuilder {
     async fn send_and_log(self) -> Result<Response> {
         let res = self.send().await?;
